@@ -6,12 +6,115 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Título
+Introducción del tema y objetivo
+
+```{r cargar los datos, echo = FALSE}
+col_names <- c("Code", "ClumpThickness","CellSizeUniformity", "CellShapeUniformity",
+               "MarginalAdhesion", "SingleEpithelialCellSize", "BareNuclei",
+               "BlandChromatin", "NormalNucleoli", "Mitoses", "Group", "Class")
+
+data_train <- readLines("DATA/Breast_Cancer_train.data")
+# read.csv solo permite usar separadores de 1 byte, así que tenemos que recurrir a otras opciones
+data_train <- gsub("h_", ",", data_train)
+data_train <- textConnection(data_train)
+data_train <- read.csv(data_train,
+                       header = FALSE)
+names(data_train) <- col_names
+
+library(stringr)
+data_test <- readLines("DATA/Breast_Cancer_test.data")
+data_test <- str_replace_all(data_test, "[[:punct:]]", ",")
+data_test <- textConnection(data_test)
+data_test <- read.csv(data_test,
+                       header = FALSE)
+NAcols <- (1:ncol(data_test))%%2
+data_test <- data_test[!NAcols == 0]
+names(data_test) <- col_names[-length(col_names)]
+```
+
+Una vez cargados los datos y darles el formato adecuado para su uso, comprobaremos que todos son de tipo numérico, y cambiaremos el tipo de los que no lo sean.
+
+```{r tipos de datos,echo = fALSE}
+for (col in names(data_train)){
+  if (class(data_train[, col]) != "integer"){
+  data_train[, col] <- as.integer(data_train[, col])
+  }
+}
+
+for (col in names(data_test)){
+  if (class(data_test[, col]) != "integer"){
+  data_test[, col] <- as.integer(data_test[, col])
+  }
+}
+summary(data_train)
+print("------------------------------------------------------")
+summary(data_test)
+```
+El programa nos indica que ha introducido NAs en varias columnas del dataset de entrenamiento, ya que contenían datos no numéricos. Por ejemplo, en la columna BareNuclei, había varias celdas cuyo valor era "?".
+
+Ahora nos encargaremos de cambiar los valores introducidos por error en aquellas casillas que los contengan. Por ejemplo, sabiendo que los valores que puede tomar una variable se encuentran en el rango [1, 10], un valor de 80 probablemente indique que quien haya introducido un dato haya puesto un cero de más y el valor real sea 8.
 
 ```{r}
+
+data_train$BlandChromatin[which(data_train$BlandChromatin == 11)] <- 1
+data_train$Class[which(data_train$Class == 44)] <- 4
+data_train$Class[which(data_train$Class ==3)] <- NA
+
+for (col in names(data_train)[-1]){
+  values <- data_train[, col][which(data_train[, col] > 10)]
+  data_train[, col][which(data_train[, col] > 10)] <- values/10
+}
+
+summary(data_train)
 ```
+
+
+
+El siguiente paso será imputar los NAs que se hayan producido. Comprobamos las distribuciones de los datos para elegir el método a utilizar para imputar los NAs
+
+```{r echo = FALSE}
+for (col in names(data_train)[-1]){
+  hist(data_train[,col],
+       main = paste0("Distribución de ", col))
+}
+```
+
+Ahora toca lidiar con los missing values. En este caso, como los datos faltantes no son tantos y las distribuciones son asimétricas, sustituiremos las celdas en las que aparezca un NA por el valor de la mediana de la columna en la que se encuentren. Aunque se altere la naturaleza de los datos, el desvío será mínimo, pues no hay un gran número de datos faltantes.
+
+```{r Imputar NAs, echo = FALSE}
+for (col in names(data_train)){
+  if (sum(is.na((data_train[, col]))) != 0){
+    median_col <- median(data_train[, col],
+                      na.rm = TRUE)
+    data_train[, col][is.na(data_train[, col])] <- median_col
+  }
+}
+
+summary(data_train)
+```
+Observamos que ya no quedan missing values. Volvemos a comprobar las distribuciones de los datos.
+
+```{r, echo = FALSE}
+for (col in names(data_train)[-1]){
+  hist(data_train[,col],
+       main = paste0("Distribución de ", col))
+}
+```
+
+Por último, atendiendo a la naturaleza de las variables, factorizamos todas las variables que se introducirán en el modelo predictivo.
+
+```{r, echo = FALSE}
+for (col in names(data_train)[-1]){
+  if (class(data_train[, col]) != "integer"){
+  data_train[, col] <- as.factor(data_train[, col])
+  }
+}
+```
+
 
 ## Including Plots
 
