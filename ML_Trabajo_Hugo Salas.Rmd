@@ -3,13 +3,16 @@ title: "ML_Trabajo_Hugo Salas"
 author: "Hugo Salas"
 date: "2023-02-25"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+El código empleado para la realización de este trabajo puede encontrarse en el siguiente enlace: 
+[GitHub Link](https://github.com/HSalasPedr/ML_Trabajo_Hugo-Salas.git)
 
 ## Título
 Introducción del tema y objetivo
@@ -40,7 +43,7 @@ names(data_test) <- col_names[-length(col_names)]
 
 Una vez cargados los datos y darles el formato adecuado para su uso, comprobaremos que todos son de tipo numérico, y cambiaremos el tipo de los que no lo sean.
 
-```{r tipos de datos,echo = fALSE, warning = FALSE}
+```{r tipos de datos,echo = FALSE, warning = FALSE}
 for (col in names(data_train)){
   if (class(data_train[, col]) != "integer"){
   data_train[, col] <- as.numeric(data_train[, col])
@@ -52,13 +55,12 @@ for (col in names(data_test)){
   data_test[, col] <- as.integer(data_test[, col])
   }
 }
+print("Resumen de los datos de entrenamiento")
 summary(data_train)
-print("------------------------------------------------------")
-summary(data_test)
 ```
 Posteriormente, factorizaremos las variables necesarias. En este caso, se considera que las variables Class y Group deben tomarse como factores. Se omite la variable Code, que no se incluirá en el modelo final.
 
-```{r}
+```{r factorizar, echo = FALSE}
 data_train$Class <- as.factor(data_train$Class)
 data_train$Group <- as.factor(data_train$Group)
 ```
@@ -67,7 +69,7 @@ El programa nos indica que ha introducido NAs en varias columnas del dataset de 
 
 Ahora nos encargaremos de cambiar los valores introducidos por error en aquellas casillas que los contengan. Por ejemplo, sabiendo que los valores que puede tomar una variable se encuentran en el rango [1, 10], un valor de 80 probablemente indique que quien haya introducido un dato haya puesto un cero de más y el valor real sea 8.
 
-```{r, echo = FALSE}
+```{r arreglar train, echo = FALSE}
 data_train$BlandChromatin[which(data_train$BlandChromatin == 11)] <- 1
 data_train$Class[which(data_train$Class == 44)] <- 4
 data_train$Class[which(data_train$Class == 20)] <- 2
@@ -85,7 +87,7 @@ summary(data_train)
 
 Estandarizamos las variables numéricas para que sus valores sean comparables posteriormente. Además, se eliminará la columna Code, que no se empleará en el modelo.
 
-```{r, echo = FALSE}
+```{r estandarizar, echo = FALSE}
 estandariza <- function(valores){
   output <- (valores - mean(valores, na.rm = TRUE))/sd(valores, na.rm = TRUE)
   return(output)
@@ -103,9 +105,11 @@ final_data_train <- data_train[, 11:21]
 
 El siguiente paso será imputar los NAs que se hayan producido. Comprobamos las distribuciones de los datos para elegir el método a utilizar para imputar los NAs.
 
-```{r echo = FALSE}
+```{r distribuciones train, echo = FALSE}
+par(mfrow = c(3, 4))
+
 for (col in names(final_data_train)[-c(1, 2)]){
-  hist(data_train[,col],
+  hist(final_data_train[,col],
        main = paste0("Distribución de ", col))
 }
 plot(final_data_train$Class)
@@ -136,7 +140,7 @@ Observamos que ya no quedan missing values. El siguiente paso será entrenar el 
 
 Por la naturaleza de la variable regresora, que es un factor, se opta por un modelo logístico. Para automatizar el proceso, se emplea la función "step" de R, que selecciona un modelo mediante procedimientos step-wise con base en su AIC.
 
-```{r, echo = FALSE, warning = FALSE}
+```{r entrenar modelo, echo = FALSE, warning = FALSE}
 data_train2 <- final_data_train
 intercept_only <- glm(Class ~ 1, data = data_train2, family = binomial(link="logit"))
 all <- glm(Class ~ ., data = data_train2, family = binomial(link = "logit"))
@@ -146,7 +150,7 @@ backward <- step(all, direction = "backward", scope = formula(all), trace = 0)
 both <- step(intercept_only, direction = "both", scope = formula(all), trace = 0)
 ```
 
-```{r, echo = FALSE}
+```{r mostrar resultados del entrenamiento, echo = FALSE}
 intercept_only$anova
 backward$coefficients
 backward$anova
@@ -155,7 +159,7 @@ both$anova
 ```
 Finalmente, el modelo obtenido contempla los siguiente parámetros:
 
-```{r}
+```{r mostrar modelo, echo = FALSE}
 both$formula
 ```
 
@@ -164,7 +168,7 @@ both$formula
 
 Creamos datasets de test y de entrenamiento para comprobar la capacidad de predicción del modelo. Para ello, primero se crea una función que recoja los datos de las matrices de confusión que se obtengan del entrenamiento del modelo, y calcule las métricas necesarias para su evaluación. Posteriormente, se dividirá el conjunto de datos de entrenamiento de forma que se emplee el 80% de los datos para el entrenamiento y el 20% restante para el test.
 
-```{r echo=FALSE}
+```{r función para recoger métricas, echo = FALSE}
 get_table_info <- function(confusion_table){
   # accuracy <-  (TP + TN)/n
   # precission = TP/(TP + FP)
@@ -190,14 +194,14 @@ get_table_info <- function(confusion_table){
 }
 ```
 
-```{r}
+```{r cross validation, echo = FALSE}
 data_cv <- final_data_train
 final_statistics <- data.frame()
 
 vec_all <- 1:nrow(data_cv)
 data_target_df <- data.frame(ifelse(final_data_train$Class == "Malignant", 1, 0))
 data_cv[,"Class"] <- data_target_df
-
+par(mfrow = c(2, 3))
 for (i in seq_along(1:5)){
   test_ind <- sample(vec_all, floor(length(vec_all)/5))
   vec_all <- vec_all[-test_ind]
@@ -225,6 +229,67 @@ for (i in seq_along(1:5)){
 final_statistics
 ```
 
+## Datos de test
 
+A continuación, prepararemos el dataset de test para realizar las predicciones. Se seguirá el mismo pipeline que se siguió con los datos de entrenamiento. La principal diferencia será que en este caso se opta por no imputar missing values.
+
+```{r arreglar datos de test, echo = FALSE}
+summary(data_test)
+data_test$Group <- as.factor(data_test$Group)
+```
+
+```{r, echo = FALSE}
+for (col in names(data_test)[-c(1, 11)]){
+  values <- data_test[, col][which(data_test[, col] > 10)]
+  data_test[, col][which(data_test[, col] > 10)] <- values/10
+}
+
+summary(data_test)
+```
+
+```{r, echo = FALSE}
+data_est_test <- data_test[,-c(1, 11)]
+for (var in names(data_est_test)){
+  new_var_name <- paste0("est_", var)
+  est_var <- estandariza(data_est_test[[var]])
+  data_test[, new_var_name] <- est_var
+}
+
+final_data_test <- data_test[, 11:20]
+```
+
+```{r, echo = FALSE}
+par(mfrow = c(3, 4))
+
+for (col in names(final_data_test)[-c(1, 2)]){
+  hist(final_data_test[,col],
+       main = paste0("Distribución de ", col))
+}
+
+plot(final_data_test$Group)
+```
+
+```{r datos de test finales, echo = FALSE}
+print("Resumen de los datos procesados")
+summary(final_data_test)
+```
+
+## Predicciones
+
+A continuación, se procede a predecir si los casos propuestos en el dataset de test son pacientes positivos en cáncer de mama.
+
+```{r predicciones con los datos de test, echo = FALSE}
+test_predictions <- predict(model_train, newdata = final_data_test, type = "response")
+test_predictions01 <- ifelse(test_predictions > 0.5, 1, 0)
+print("Resultados de las predicciones (0 = negativo, 1 = positivo)")
+table(test_predictions01)
+```
+
+Por último, se añaden los datos de las predicciones a una tabla para comparar con los datos reales. Se exporta esta tabla en formato csv.
+
+```{r, echo = FALSE}
+csv_export <- data.frame(Code = data_test$Code, Prediction = test_predictions01)
+write.csv(csv_export, "ML1_Results_HugoSalas", row.names = FALSE)
+```
 
 
