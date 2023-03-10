@@ -15,7 +15,6 @@ El código empleado para la realización de este trabajo puede encontrarse en el
 [GitHub Link](https://github.com/HSalasPedr/ML_Trabajo_Hugo-Salas.git)
 
 ## Título
-Introducción del tema y objetivo
 
 ```{r cargar los datos, echo = FALSE}
 col_names <- c("Code", "ClumpThickness","CellSizeUniformity", "CellShapeUniformity",
@@ -58,6 +57,17 @@ for (col in names(data_test)){
 print("Resumen de los datos de entrenamiento")
 summary(data_train)
 ```
+
+Antes de iniciar cualquier cambio al conjunto de datos de entrenamiento, se identificó que había casos que pertenecían al mismo sujeto. Entre ellos, había tres registros exactamente iguales. Se optó por mantenerlos, pues podrían tatarse del mismo sujeto participando en distintos estudios, y que estuviera padeciendo una evolución en su enfermedad. Por otra parte, el código de identificación del paciente no es relevante a la hora de entrenar el modelo, y las tres filas exactamente iguales no deberían suponer un problema de overfitting al entrenar el modelo.
+
+```{r, echo = FALSE, message = FALSE}
+library(dplyr)
+print(paste0("Número de casos en el dataset de entrenamiento: ", nrow(data_train)))
+print(paste0("Número de pacientes no repetidos en el dataset de entrenamiento: ", length(unique(data_train$Code))))
+print(paste0("Número de casos no repetidos en el dataset de entrenamiento: ", data_train %>% distinct() %>% nrow()))
+```
+
+
 Posteriormente, factorizaremos las variables necesarias. En este caso, se considera que las variables Class y Group deben tomarse como factores. Se omite la variable Code, que no se incluirá en el modelo final.
 
 ```{r factorizar, echo = FALSE}
@@ -163,6 +173,26 @@ Finalmente, el modelo obtenido contempla los siguiente parámetros:
 both$formula
 ```
 
+Se observa si hay grupos de dos variables que interaccionen entre sí, para ello, se exporta una imagen en formato pdf que compara dichas variables dos a dos. En ella, no se observan tendencias claras que justifiquen la adición de términos de interacción al modelo entrenado.
+
+```{r, echo = FALSE, message = FALSE}
+library(ggplot2)
+library(GGally)
+
+pdf("my_plot.pdf",         # File name
+    width = 20, height = 15, # Width and height in inches
+    bg = "white",          # Background color
+    colormodel = "cmyk",    # Color model (cmyk is required for most publications)
+    paper = "A4")          # Paper size
+
+ggpairs(final_data_train)
+
+dev.off()
+```
+
+```{r}
+knitr::include_graphics("my_plot.pdf")
+```
 
 ## Cross validation
 
@@ -231,10 +261,9 @@ final_statistics
 
 ## Datos de test
 
-A continuación, prepararemos el dataset de test para realizar las predicciones. Se seguirá el mismo pipeline que se siguió con los datos de entrenamiento. La principal diferencia será que en este caso se opta por no imputar missing values.
+A continuación, prepararemos el dataset de test para realizar las predicciones. Se seguirá el mismo pipeline que se siguió con los datos de entrenamiento. La principal diferencia será que en este caso se opta por no imputar missing values. Para los datos de test, también se identificaron sujetos repetidos. Sin embargo, con tal de reportar todas las predicciones requeridas, no fueron eliminadas. Además, no tendrían efecto sobre el entrenamiento del modelo.
 
 ```{r arreglar datos de test, echo = FALSE}
-summary(data_test)
 data_test$Group <- as.factor(data_test$Group)
 ```
 
@@ -243,8 +272,6 @@ for (col in names(data_test)[-c(1, 11)]){
   values <- data_test[, col][which(data_test[, col] > 10)]
   data_test[, col][which(data_test[, col] > 10)] <- values/10
 }
-
-summary(data_test)
 ```
 
 ```{r, echo = FALSE}
@@ -291,5 +318,4 @@ Por último, se añaden los datos de las predicciones a una tabla para comparar 
 csv_export <- data.frame(Code = data_test$Code, Prediction = test_predictions01)
 write.csv(csv_export, "ML1_Results_HugoSalas", row.names = FALSE)
 ```
-
 
