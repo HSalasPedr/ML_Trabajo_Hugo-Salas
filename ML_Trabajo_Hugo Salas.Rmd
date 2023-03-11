@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 El código empleado para la realización de este trabajo puede encontrarse en el siguiente enlace: 
 [GitHub Link](https://github.com/HSalasPedr/ML_Trabajo_Hugo-Salas.git)
 
-## Título
+## Modelo Logístico para la Predicción de Cáncer de Mama
 
 ```{r cargar los datos, echo = FALSE}
 col_names <- c("Code", "ClumpThickness","CellSizeUniformity", "CellShapeUniformity",
@@ -84,7 +84,8 @@ data_train$BlandChromatin[which(data_train$BlandChromatin == 11)] <- 1
 data_train$Class[which(data_train$Class == 44)] <- 4
 data_train$Class[which(data_train$Class == 20)] <- 2
 data_train$Class[which(data_train$Class == 3)] <- NA
-data_train$CellShapeUniformity[which(data_train$Class == -7)] <- 7
+data_train$CellShapeUniformity[which(data_train$CellShapeUniformity == -7)] <- 7
+data_train$MarginalAdhesion[which(data_train$MarginalAdhesion == -7)] <- 7
 data_train$Class <- droplevels(data_train$Class)
 
 for (col in names(data_train)[-c(1, 11, 12)]){
